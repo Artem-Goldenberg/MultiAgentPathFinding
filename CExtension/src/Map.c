@@ -38,8 +38,8 @@ Map *newMap(int width, int height, const char *rawBuffer) {
 }
 
 Map *newMapWithConstraints(int width, int height,
-                           vector *vertexConstraints,
-                           vector *edgeConstraints,
+                           Array *vertexConstraints,
+                           Array *edgeConstraints,
                            const char *rawBuffer) {
     Map *map = malloc(sizeof(Map));
     map->width = width;
@@ -48,8 +48,8 @@ Map *newMapWithConstraints(int width, int height,
     map->eConstraints = edgeConstraints;
     map->data = rawBuffer;
     
-    if (map->vConstraints) VectorSort(map->vConstraints, vConstraintCmp);
-    if (map->eConstraints) VectorSort(map->eConstraints, eConstraintCmp);
+    if (map->vConstraints) sortArray(map->vConstraints, vConstraintCmp);
+    if (map->eConstraints) sortArray(map->eConstraints, eConstraintCmp);
     return map;
 }
 
@@ -67,14 +67,14 @@ static bool boundsCheck(Map *map, Point p) {
 
 static bool notInVConstraints(Map *map, int time, Point p) {
     VConstraint toFind = {time, p};
-    return !map->vConstraints || VectorSearch(map->vConstraints, &toFind, vConstraintCmp, 0, true) == -1;
+    return !map->vConstraints || searchArray(map->vConstraints, &toFind, vConstraintCmp, true) == ARRAY_NOT_FOUND;
 }
 static bool notInEConstraints(Map *map, int time, Point p1, Point p2) {
     if (pointCmp(p1, p2) > 0) // in unsorted order, swap
         swap(&p1, &p2);
     EConstraint toFind = {time - 1, {p1, p2}};
     // the only difference and    ^^^^^^  reason why we can't have one type of constraints
-    return !map->eConstraints || VectorSearch(map->eConstraints, &toFind, eConstraintCmp, 0, true) == -1;
+    return !map->vConstraints || searchArray(map->vConstraints, &toFind, vConstraintCmp, true) == ARRAY_NOT_FOUND;
 }
 static bool notInConstraints(Map *map, int time, Point current, Point dest) {
     return notInVConstraints(map, time, dest) && notInEConstraints(map, time, current, dest);
@@ -122,7 +122,7 @@ static void findMax(void *p, void *acc) {
 
 int getGoalTimeBoundary(Map *map, Point g) {
     SearchHelper acc = {g, .maxSoFar = -1};
-    if (map->vConstraints) VectorMap(map->vConstraints, findMax, &acc);
+    if (map->vConstraints) mapArray(map->vConstraints, findMax, &acc);
     return acc.maxSoFar;
 }
 

@@ -1,7 +1,7 @@
 #ifndef Map_h
 #define Map_h
 
-#include "vector.h"
+#include "Array.h"
 
 typedef struct {
     int x, y;
@@ -31,8 +31,8 @@ typedef struct {
 
 typedef struct {
     int width, height;
-    vector *vConstraints;
-    vector *eConstraints;
+    Array *vConstraints;
+    Array *eConstraints;
     const char *data;
 } Map;
 
@@ -44,8 +44,8 @@ Map *newMap(int width, int height, const char *rawBuffer);
 /// creates map similar to `newMap` function, but created map will also have vertex and/or edge constraints
 /// all of which will be checked for in the `getNeighbors` function
 Map *newMapWithConstraints(int width, int height,
-                           vector *vertexConstraints,
-                           vector *edgeConstraints,
+                           Array *vertexConstraints,
+                           Array *edgeConstraints,
                            const char *rawBuffer);
 
 /// find neighbors to the point `p` at `time` on the 4-connected grid

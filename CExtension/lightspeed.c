@@ -4,17 +4,145 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
+#include "Set.h"
 #include "Map.h"
-#include "vector.h"
 #include "Allocator.h"
 #include "Algorithm.h"
 
+#define NUM_BUCKETS 317
 
 /// Uncomment if you want to debug `A*`
-// #define DebugMode
+//  #define DebugMode
 
 
 extern Allocator *a;
+
+static Map *setupConstraints(PyArrayObject *grid, PyArrayObject *vConstraints, PyArrayObject *eConstraints) {
+    int vConstraintsCount = 0;
+    if (vConstraints) vConstraintsCount = (int)PyArray_DIM(vConstraints, 0);
+
+    int eConstraintsCount = 0;
+    if (eConstraints) eConstraintsCount = (int)PyArray_DIM(eConstraints, 0);
+
+    int w = (int)PyArray_DIM(grid, 1);
+    int h = (int)PyArray_DIM(grid, 0);
+    char *mapBytes = PyArray_BYTES(grid);
+
+    if (vConstraintsCount > 0 || eConstraintsCount > 0) {
+        Array constraints[2] = {0};
+        Array *vc = NULL, *ec = NULL;
+        if (vConstraintsCount > 0) {
+            initArrayWithBuffer(constraints, sizeof(VConstraint), PyArray_DATA(vConstraints), vConstraintsCount);
+            vc = constraints;
+        }
+        if (eConstraintsCount > 0)  {
+            initArrayWithBuffer(constraints + 1, sizeof(EConstraint), PyArray_DATA(eConstraints), eConstraintsCount);
+            ec = constraints + 1;
+        }
+        return newMapWithConstraints(w, h, vc, ec, mapBytes);
+    }
+    return newMap(w, h, mapBytes);
+}
+
+static void logConstraints(PyArrayObject *vConstraints, PyArrayObject *eConstraints) {
+    int vConstraintsCount = 0;
+    if (vConstraints) vConstraintsCount = (int)PyArray_DIM(vConstraints, 0);
+
+    int eConstraintsCount = 0;
+    if (eConstraints) eConstraintsCount = (int)PyArray_DIM(eConstraints, 0);
+    
+    printf("VertexConstraints: len = %d ", vConstraintsCount);
+    puts("in format: t, (x, y)");
+
+    VConstraint *vcs = (VConstraint*)PyArray_DATA(vConstraints);
+    for (int i = 0; i < vConstraintsCount; ++i)
+        printf("[%d] = %d, (%d, %d)\n", i, vcs[i].time, vcs[i].p.x, vcs[i].p.y);
+    
+    printf("\nEdgeConstraints: len = %d ", eConstraintsCount);
+    puts("in format: t, (x1, y1) -> (x2, y2)");
+    
+    EConstraint *ecs = (EConstraint*)PyArray_DATA(eConstraints);
+    for (int i = 0; i < eConstraintsCount; ++i)
+        printf("[%d] = %d, (%d, %d) -> (%d, %d)\n",
+               i, ecs[i].time, ecs[i].e.p1.x, ecs[i].e.p1.y, ecs[i].e.p2.x, ecs[i].e.p2.y);
+    
+    printf("\n");
+}
+
+static PyArrayObject *constructPath(Node *result) {
+    // create the return array
+    npy_intp shape[] = {result->g + 1, 2};
+    PyArrayObject *path = (PyArrayObject*)PyArray_SimpleNew(2, shape, NPY_INT);
+    
+    // fill the array by unwinding the path by traveling through `parent`
+    Point *p = PyArray_DATA(path);
+    p += result->g;
+    Node *current = result;
+#ifdef DebugMode
+    printf("found path with length = %d\n", result->g);
+#endif
+    while (current) {
+        *p = current->p;
+        --p;
+#ifdef DebugMode
+        printf("(%d, %d) <- ", current->p.x, current->p.y);
+#endif
+        current = current->parent;
+    }
+#ifdef DebugMode
+    printf("\n\n");
+#endif
+    
+    return path;
+}
+
+typedef struct {
+    Set *nextLayer;
+    int *mddPtr;
+} MapHelper;
+
+static void appendParents(void *p, void *auxData) {
+    MddNode *node = *(MddNode**)p;
+    MapHelper *helper = (MapHelper*)auxData;
+    
+    for (int i = 0; node->parents[i]; ++i) {
+        addTo(helper->nextLayer, &node->parents[i]);
+        helper->mddPtr[-1]++; // increase number of edges
+    }
+    
+    helper->mddPtr[0]++; // increase number of nodes
+}
+
+static PyObject *constructPathAndMdd(MddNode *result) {
+    PyArrayObject *path = constructPath((Node*)result);
+    
+    npy_intp shape[] = {result->g * 2 + 1};
+    PyArrayObject *mdd = (PyArrayObject*)PyArray_SimpleNew(1, shape, NPY_INT);
+    
+    int *mddPtr = PyArray_DATA(mdd);
+    
+    Set layers[2];
+    Set *layer = layers, *nextLayer = layers + 1;
+    initSet(layer, sizeof(MddNode*), NUM_BUCKETS, mddNodeHash, mddNodeCmp, NULL);
+    initSet(nextLayer, sizeof(MddNode*), NUM_BUCKETS, mddNodeHash, mddNodeCmp, NULL);
+
+    addTo(layer, &result);
+    for (int i = 0; i <= result->g; ++i) {
+        MapHelper helper = {nextLayer, mddPtr + (result->g - i) * 2};
+        mapSet(layer, appendParents, &helper);
+        
+        // swap layers and clear nextLayer
+        Set *tmp = layer;
+        layer = nextLayer;
+        nextLayer = tmp;
+        clearSet(nextLayer);
+    }
+    
+    deinitSet(layer);
+    deinitSet(nextLayer);
+    
+    return PyTuple_Pack(2, path, mdd);
+}
 
 static PyObject *
 fromPython(PyObject *self, PyObject *args, PyObject *keywords)
@@ -34,53 +162,12 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
     ))
         return NULL;
 
-    int vConstraintsCount = 0;
-    if (vConstraints) vConstraintsCount = (int)PyArray_DIM(vConstraints, 0);
-
-    int eConstraintsCount = 0;
-    if (eConstraints) eConstraintsCount = (int)PyArray_DIM(eConstraints, 0);
-
-    Map *map;
-    int w = (int)PyArray_DIM(grid, 1);
-    int h = (int)PyArray_DIM(grid, 0);
-    char *mapBytes = PyArray_BYTES(grid);
-
-    if (vConstraintsCount > 0 || eConstraintsCount > 0) {
-        vector constraints[2] = {0};
-        vector *vc = NULL, *ec = NULL;
-        if (vConstraintsCount > 0) { 
-            VectorNewFromBuffer(constraints, sizeof(VConstraint), vConstraintsCount, PyArray_DATA(vConstraints));
-            vc = constraints;
-        }
-        if (eConstraintsCount > 0)  {
-            VectorNewFromBuffer(constraints + 1, sizeof(EConstraint), eConstraintsCount, PyArray_DATA(eConstraints));
-            ec = constraints + 1;
-        }
-        map = newMapWithConstraints(w, h, vc, ec, mapBytes);
-    } else { 
-        map = newMap(w, h, mapBytes);
-    }
+    Map *map = setupConstraints(grid, vConstraints, eConstraints);
 
 #ifdef DebugMode
     puts("\n----------------------------------------------");
     printf("Calculating path from (%d, %d) to (%d, %d)\n\n", sx, sy, gx, gy);
-    
-    printf("VertexConstraints: len = %d ", vConstraintsCount);
-    puts("in format: t, (x, y)");
-
-    VConstraint *vcs = (VConstraint*)PyArray_DATA(vConstraints);
-    for (int i = 0; i < vConstraintsCount; ++i)
-        printf("[%d] = %d, (%d, %d)\n", i, vcs[i].time, vcs[i].p.x, vcs[i].p.y);
-    
-    printf("\nEdgeConstraints: len = %d ", eConstraintsCount);
-    puts("in format: t, (x1, y1) -> (x2, y2)");
-    
-    EConstraint *ecs = (EConstraint*)PyArray_DATA(eConstraints);
-    for (int i = 0; i < eConstraintsCount; ++i)
-        printf("[%d] = %d, (%d, %d) -> (%d, %d)\n",
-               i, ecs[i].time, ecs[i].e.p1.x, ecs[i].e.p1.y, ecs[i].e.p2.x, ecs[i].e.p2.y);
-    
-    printf("\n");
+    logConstraints(vConstraints, eConstraints);
 #endif
     
     Point s = {sx, sy}, g = {gx, gy};
@@ -89,14 +176,28 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
     printf("minimum path lenght with respect to constraints = %d\n", getGoalTimeBoundary(map, g));
 #endif
 
-    a = newAllocator(10, map->width * map->height / 2);
+    bool found;
+    PyObject *returnObject;
+    if (!returnAll) {
+        a = newAllocator(20 * sizeof(Node), map->width * map->height / 3);
+        
+        // actual A* here
+        Node result;
+        found = findPath(map, s, g, &result);
+        if (found) returnObject = (PyObject*)constructPath(&result);
+    } else {
+        a = newAllocator(10 * sizeof(MddNode), map->width * map->height / 3);
+        
+        // A* for all paths
+        MddNode result;
+        found = findAllPaths(map, s, g, &result);
+        if (found) returnObject = constructPathAndMdd(&result);
+    }
     
-    // actual A* here
-    Node result;
-    bool found = findPath(map, s, g, &result);
+    deleteMap(map);
+    deleteAllocator(a);
     
     if (!found) {
-        deleteAllocator(a);
 #ifdef DebugMode
         puts("Path not found this time!");
         puts("Calculating is done");
@@ -105,48 +206,12 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
         Py_RETURN_NONE;
     }
 
-    // create the return array
-    npy_intp shape[] = {result.g + 1, 2};
-    PyArrayObject *path = (PyArrayObject*)PyArray_SimpleNew(2, shape, NPY_INT);
-
-    // fill the array by unwinding the path by traveling through `parent`
-    Point *p = PyArray_DATA(path);
-    p += result.g;
-    Node *current = &result;
-#ifdef DebugMode
-    printf("found path with length = %d\n", result.g);
-#endif
-    while (current) {
-        *p = current->p;
-        --p;
-#ifdef DebugMode
-        printf("(%d, %d) <- ", current->p.x, current->p.y);
-#endif
-        current = current->parent;
-    }
-#ifdef DebugMode
-    printf("\n\n");
-#endif
-
-    deleteMap(map);
-    deleteAllocator(a);
-
-    if (returnAll) {
-#ifdef DebugMode
-        puts("Returning all paths");
-        puts("Calculating is done"); // for now
-        puts("----------------------------------------------\n");
-#endif
-        PyErr_SetString(PyExc_NotImplementedError, "return all paths is not implemented yet!");
-        return NULL;
-    }
-
 #ifdef DebugMode
     puts("Calculating is done");
     puts("----------------------------------------------\n");
 #endif
 
-    return (PyObject*)path;
+    return returnObject;
 }
 
 static PyMethodDef methods[] = {

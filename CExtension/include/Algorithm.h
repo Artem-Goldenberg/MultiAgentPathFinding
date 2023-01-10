@@ -6,6 +6,8 @@
 
 bool findPath(Map *map, Point s, Point g, Node *found);
     
-bool testPath(Map *map, Point s, Point g);
+// bool testPath(Map *map, Point s, Point g);
+
+bool findAllPaths(Map *map, Point s, Point g, MddNode *found);
 
 #endif /* Algorithm_h */

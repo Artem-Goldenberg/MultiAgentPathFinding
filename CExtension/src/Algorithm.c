@@ -1,9 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "Algorithm.h"
 
+#include "Set.h"
 #include "Allocator.h"
 #include "PriorityQueue.h"
-#include "hashset.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #define NUM_BUCKETS 1337
 
@@ -11,17 +13,34 @@ int manhattan(Point p1, Point p2) {
     return abs(p1.x - p2.x) + abs(p1.y - p2.y);
 }
 
+static int lowestG(const void *p1, const void *p2) {
+    Node *node1 = (Node*)p1, *node2 = (Node*)p2;
+    // reverse order, lower f, higher priority
+    int df = node2->f - node1->f;
+    if (df != 0) return df;
+    // reverse order, lower g, higher priority
+    return node2->g - node1->g;
+}
+
+static int highestG(const void *p1, const void *p2) {
+    Node *node1 = (Node*)p1, *node2 = (Node*)p2;
+    // reverse order, lower f, higher priority
+    int df = node2->f - node1->f; 
+    if (df != 0) return df;
+    // same order here, higher g, higher priority
+    return node1->g - node2->g;
+}
+
 Allocator *a;
 
 bool findPath(Map *map, Point s, Point g, Node *storage) {
-    hashset closed;
-    HashSetNew(&closed, sizeof(Node*), NUM_BUCKETS, nodePtrHash, nodePtrCmp, NULL);
-    PriorityQueue *open = newQueue(map->height * map->width / 2);
+    Set *closed = newSet(sizeof(Node*), NUM_BUCKETS, nodePtrHash, nodePtrCmp, NULL);
+    PriorityQueue *open = newQueue(sizeof(Node), map->height * map->width / 2, highestG);
     
     int maxConstrainedTime = getGoalTimeBoundary(map, g);
     bool found = false;
     
-    Node *node = allocNode(a);
+    Node *node = allocate(a, sizeof(Node));
     node->p = s;
     enqueue(open, node);
     
@@ -34,8 +53,12 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
                 break;
             }
         }
+
+        if (searchSet(closed, &node) != NULL)
+            // duplicate node, was already expanded
+            continue;
         
-        HashSetEnter(&closed, &node);
+        addTo(closed, &node);
         
         Point neighbors[5];
         int amount = getNeighbors(map, node->g + 1, node->p, found, neighbors);
@@ -43,17 +66,73 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
             Node neighbour = {neighbors[i], .g = node->g + 1};
             Node *ptr = &neighbour;
 
-            if (HashSetLookup(&closed, &ptr) == NULL) {
+            if (searchSet(closed, &ptr) == NULL) {
                 neighbour.f = neighbour.g + manhattan(neighbour.p, g);
                 neighbour.parent = node;
                 enqueue(open, &neighbour);
             }
         }
-        node = allocNode(a);
+        node = allocate(a, sizeof(Node));
     }
     
     deleteQueue(open);
-    HashSetDispose(&closed);
+    deleteSet(closed);
+    
+    return found;
+}
+
+bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
+    Set *closed = newSet(sizeof(MddNode*), NUM_BUCKETS, nodePtrHash, nodePtrCmp, NULL);
+    
+    // can use the same `highestG` and `lowestG` functions because `MddNode` stores data in the same way
+    PriorityQueue *open = newQueue(sizeof(MddNode), map->height * map->width / 2, lowestG);
+    
+    int maxConstrainedTime = getGoalTimeBoundary(map, g);
+    bool found = false;
+    
+    MddNode *node = allocate(a, sizeof(MddNode));
+    node->p = s;
+    enqueue(open, node);
+    
+    while (dequeue(open, node)) {
+        found = false;
+        if (pointCmp(node->p, g) == 0) {
+            found = true;
+            if (node->g > maxConstrainedTime) {
+                *storage = *node;
+                break;
+            }
+        }
+        
+        MddNode **expanded = searchSet(closed, &node);
+        if (expanded) {
+            // found duplicate, add to parents and skip
+            addParent(*expanded, node->parents[0]);
+            continue;
+        }
+        
+        addTo(closed, &node);
+        
+        Point neighbors[5];
+        int amount = getNeighbors(map, node->g + 1, node->p, found, neighbors);
+        for (int i = 0; i < amount; ++i) {
+            MddNode neighbour = {neighbors[i], .g = node->g + 1};
+            MddNode *ptr = &neighbour;
+
+            if (searchSet(closed, &ptr) == NULL) {
+                neighbour.f = neighbour.g + manhattan(neighbour.p, g);
+                addParent(&neighbour, node);
+                enqueue(open, &neighbour);
+            }
+        }
+        node = allocate(a, sizeof(MddNode));
+    }
+    
+    while (dequeue(open, node) && pointCmp(node->p, storage->p) == 0)
+        addParent(storage, node->parents[0]);
+    
+    deleteQueue(open);
+    deleteSet(closed);
     
     return found;
 }
@@ -77,7 +156,7 @@ bool testPath(void) {
     
     a = newAllocator(10, mapWidth * mapHeight / 2);
     
-    vector vConstraints, eConstraints;
+    Array vConstraints, eConstraints;
     
     // specify constraints
     VConstraint vConstraintsArray[] = {
@@ -94,15 +173,15 @@ bool testPath(void) {
         // etc...
     };
     
-    VectorNewFromBuffer(&vConstraints,
+    initArrayWithBuffer(&vConstraints,
                         sizeof(VConstraint),
-                        sizeof(vConstraintsArray) / sizeof(VConstraint),
-                        vConstraintsArray);
+                        vConstraintsArray,
+                        sizeof(vConstraintsArray) / sizeof(VConstraint));
     
-    VectorNewFromBuffer(&eConstraints,
+    initArrayWithBuffer(&eConstraints,
                         sizeof(EConstraint),
-                        sizeof(eConstraintsArray) / sizeof(EConstraint),
-                        eConstraintsArray);
+                        eConstraintsArray,
+                        sizeof(eConstraintsArray) / sizeof(EConstraint));
     
     Map *map = newMapWithConstraints(mapWidth, mapHeight, &vConstraints, &eConstraints, mapArray);
     // if vConstraints or eConstraints is empty here ----->^^^^^^^^^^^^^^^^^^^^^^^^^, better pass NULL instead of

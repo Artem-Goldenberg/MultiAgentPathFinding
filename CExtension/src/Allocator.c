@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include <assert.h>
 
-Allocator *newAllocator(size_t capacity, size_t chunkSize) {
-    assert(capacity > 0);
+#define NUM_CHUNKS 10
+
+Allocator *newAllocator(size_t chunkSize, size_t capacity) {
     assert(chunkSize > 0);
     Allocator *a = malloc(sizeof(Allocator));
-    a->chunks = calloc(capacity, sizeof(Node*));
-    a->capacity = (int)capacity;
+    a->capacity = capacity == 0 ? NUM_CHUNKS : (int)capacity;
+    a->chunks = calloc(a->capacity, sizeof(void*));
     a->chunkCount = 0;
     a->chunkSize = (int)chunkSize;
     a->top = 0;
@@ -17,25 +18,23 @@ Allocator *newAllocator(size_t capacity, size_t chunkSize) {
 
 static void grow(Allocator *a) {
     if (a->chunkCount == a->capacity) {
-        Node **reallocated = realloc(a->chunks, 2 * a->capacity * sizeof(Node*));
+        void **reallocated = realloc(a->chunks, 2 * a->capacity);
         assert(reallocated);
         a->chunks = reallocated;
         a->capacity *= 2;
     }
     
-    a->chunks[a->chunkCount] = calloc(a->chunkSize, sizeof(Node));
-    a->chunkCount++;
+    a->chunks[a->chunkCount++] = malloc(a->chunkSize);
 }
 
-Node *allocNode(Allocator *a) {
+void *allocate(Allocator *a, size_t size) {
     int chunkIndex = a->top / a->chunkSize;
     int nodeIndex = a->top % a->chunkSize;
     
-    if (chunkIndex == a->chunkCount)
-        grow(a);
+    if (chunkIndex == a->chunkCount) grow(a);
     
-    a->top++;
-    return a->chunks[chunkIndex] + nodeIndex;
+    a->top += size;
+    return (char*)a->chunks[chunkIndex] + nodeIndex;
 }
 
 void deleteAllocator(Allocator *a) {

@@ -12,8 +12,8 @@ module1 = Extension(
         dir + 'src/Node.c',
         dir + 'src/Allocator.c',
         dir + 'src/PriorityQueue.c',
-        dir + 'src/hashset.c',
-        dir + 'src/vector.c'
+        dir + 'src/Array.c',
+        dir + 'src/Set.c',
     ],
     include_dirs=[
         dir + 'include',

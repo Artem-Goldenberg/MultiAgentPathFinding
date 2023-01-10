@@ -6,13 +6,11 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from typing import Callable, Optional
 
 from Primitives.node import Node
-from Primitives.map import Map
 
 from mapf import MAPF
 from graphics import animate_solutions
@@ -72,7 +70,6 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
         It's just for debugging purposes, if your algorithm failed at least one test, 
         then it's incorrect no matter what the value of this property, just not to give any false hopes....
     """
-    num_tests = 50
     failed = 0
     answers = pd.read_csv(current_dir + "/instances/min-sum-of-cost.csv")
     for i, (name, cost) in tqdm(answers.iterrows()):
@@ -93,7 +90,7 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
         )
 
 
-def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths], draw=True):
+def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths], draw=True, print_path=True):
     """ 
     Tests algorithms (one or multiple) on one test, giving maximum information 
 
@@ -114,14 +111,15 @@ def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths
             continue
         print(f"Found solution with cost = {result.cost}")
         print(f"CPU time = {cpu_time} seconds, Wall time = {wall_time} seconds")
-        print("Agent paths:")
-        for solution in result.solutions:
-            print(f"[{solution.agent_id}] = ", end="")
-            for i, point in enumerate(solution._path):
-                print(f"({point[0]}, {point[1]})", end="")
-                if i != len(solution._path - 1):
-                    print(" -> ", end="")
-                else:
-                    print(", ", end="")
-            print(f"cost = {solution.cost}")
+        if print_path:
+            print("Agent paths:")
+            for solution in result.solutions:
+                print(f"[{solution.agent_id}] = ", end="")
+                for i, point in enumerate(solution._path):
+                    print(f"({point[0]}, {point[1]})", end="")
+                    if i != len(solution._path - 1):
+                        print(" -> ", end="")
+                    else:
+                        print(", ", end="")
+                print(f"cost = {solution.cost}")
         print("--------------------------------------------------------------------------\n")
