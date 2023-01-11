@@ -46,9 +46,7 @@ int countArray(Array *arr) { return arr->count; }
 
 void *getElement(Array *arr, int i) { return arrElem(arr, i); }
 
-#include <stdio.h>
 static void grow(Array* arr) {
-    printf("reallocating array\n");
     void *reallocated = realloc(arr->data, arr->width * arr->capacity * 2);
     assert(reallocated);
     arr->capacity *= 2;

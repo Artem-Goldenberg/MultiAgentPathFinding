@@ -12,7 +12,7 @@
 #define NUM_BUCKETS 317
 
 /// Uncomment if you want to debug `A*`
-#define DebugMode
+// #define DebugMode
 
 
 extern Allocator *a;

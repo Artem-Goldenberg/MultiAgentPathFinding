@@ -26,7 +26,7 @@ def find_agents_paths(task: MAPF):
 
         conflicts = simulate(node)
         if not conflicts:  # goal node found
-            return node
+            return node, ast
 
         conflict = conflicts[0]  # base version without any improvements
 

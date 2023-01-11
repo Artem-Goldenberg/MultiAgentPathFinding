@@ -13,7 +13,7 @@ from typing import Callable, Optional
 from Primitives.node import Node
 
 from Algorithms.mapf import MAPF
-from graphics import animate_solutions
+from .graphics import animate_solutions
 
 import Algorithms.cbs as cbs
 
@@ -47,7 +47,7 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
     try:
         start_cpu_time = time.process_time()
         start_wall_time = time.time()
-        result = algorithm(task)
+        result, ast = algorithm(task)
         wall_time = time.time() - start_wall_time
         cpu_time = time.process_time() - start_cpu_time
     except Exception as e:
@@ -55,7 +55,7 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
         return (None, 0, 0)
 
     if result is None or (not show and not save):
-        return (result, cpu_time, wall_time)
+        return (result, ast, cpu_time, wall_time)
 
     tmp_file = animate_solutions(task.map, result, show=show)
     if save:
@@ -78,7 +78,8 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
     for i, (name, cost) in tqdm(answers.iterrows()):
         task = MAPF()
         task.read_txt(current_dir + '/' + name)
-        result, _, _ = base_test(task, algorithm)
+        result, ast, _, _ = base_test(task, algorithm)
+        print(f"Closed: {len(ast._closed)}, Open: {len(ast._open)}    for: {name}")
         if result is None or result.cost != cost:
             found_cost = result.cost if result is not None else '∞'
             print(

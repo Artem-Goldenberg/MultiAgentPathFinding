@@ -17,32 +17,26 @@ class Node:
 
     def __init__(self, initial_solutions: list[Solution]) -> None:
         assert initial_solutions
-        self.vertexConstraints: dict[int, list[VertexConstraint]] = {}
-        self.edgeConstraints: dict[int, list[EdgeConstraint]] = {}
-        self._all_constraints: frozenset[Constraint] = frozenset()
+        self.vertexConstraints: frozenset[VertexConstraint] = frozenset()
+        self.edgeConstraints: frozenset[EdgeConstraint] = frozenset()
+
+        # self._all_constraints: frozenset[Constraint] = frozenset()
+
         self.solutions = initial_solutions
         self.cost = sum(map(lambda sol: sol.cost, self.solutions))
         self.time = max(map(lambda sol: sol.cost, self.solutions))
-    
+
     def make_copy(self, new_constraint: Constraint) -> 'Node':
         node = Node(deepcopy(self.solutions))
-        node._all_constraints = self._all_constraints.union([new_constraint])
-
-        # TODO: don't like this code
-        node.vertexConstraints = deepcopy(self.vertexConstraints)
-        node.edgeConstraints = deepcopy(self.edgeConstraints)
 
         if isinstance(new_constraint, VertexConstraint):
-            constraint_dict = node.vertexConstraints
+            node.vertexConstraints = self.vertexConstraints.union([new_constraint])
+            node.edgeConstraints = self.edgeConstraints
         elif isinstance(new_constraint, EdgeConstraint):
-            constraint_dict = node.edgeConstraints
+            node.vertexConstraints = self.vertexConstraints
+            node.edgeConstraints = self.edgeConstraints.union([new_constraint])
         else:
             raise TypeError("Unexpected Constraint type")
-        
-        agent_id = new_constraint.agent_id
-        if agent_id in constraint_dict:
-            constraint_dict[agent_id].append(new_constraint) # type: ignore
-        else: constraint_dict[agent_id] = [new_constraint] # type: ignore
 
         return node
 
@@ -55,11 +49,12 @@ class Node:
 
     def __hash__(self) -> int:
         # TODO: test hash
-        return hash(self._all_constraints)
+        return hash((self.vertexConstraints, self.edgeConstraints))
 
     def __eq__(self, other) -> bool:
         # TODO: test this as well
-        return (self._all_constraints == other._all_constraints)
+        return self.vertexConstraints == other.vertexConstraints \
+            and self.edgeConstraints == other.edgeConstraints
 
     def __lt__(self, other) -> bool:
         # TODO: experiment on this

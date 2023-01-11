@@ -17,7 +17,7 @@ def extract_tuple(value) -> tuple:
 def get_start_node(task: MAPF, build_mdds=False) -> Node:
     solutions = []
     for i, (s, g) in enumerate(zip(task.start_points, task.goal_points)):
-        result = lightspeed.find_path(task.map.cells, s, g, return_all=build_mdds)
+        result = lightspeed.find_path(task.map.cells, s, g, lite_mdd=build_mdds)
         if result is None: 
             return None # type: ignore
         solutions.append(Solution(i, *extract_tuple(result)))
@@ -26,9 +26,16 @@ def get_start_node(task: MAPF, build_mdds=False) -> Node:
 
 def update_solution_for(agent_id: int, node: Node, task: MAPF, build_mdd=False) -> bool:
     # construct contiguous ndarrays
-    vc = node.vertexConstraints.get(agent_id, [])
-    ec = node.edgeConstraints.get(agent_id, [])
+    # vc = node.vertexConstraints.get(agent_id, [])
+    # ec = node.edgeConstraints.get(agent_id, [])
 
+    vc = filter(lambda c: c.agent_id == agent_id, node.vertexConstraints)
+    ec = filter(lambda c: c.agent_id == agent_id, node.edgeConstraints)
+
+    # v_constraints = np.array(
+    #     [np.asarray(c) for c in node.vertexConstraints if c.agent_id == agent_id],
+    #      dtype=np.int32
+    # )
     v_constraints = np.array([np.asarray(c) for c in vc], dtype=np.int32)
     e_constraints = np.array([np.asarray(c) for c in ec], dtype=np.int32)
 
@@ -39,7 +46,7 @@ def update_solution_for(agent_id: int, node: Node, task: MAPF, build_mdd=False) 
     result = lightspeed.find_path(
         task.map.cells, s, g, 
         v_constraints=v_constraints, e_constraints=e_constraints,
-        return_all=build_mdd
+        lite_mdd=build_mdd
     )
 
     if result is None: return False

@@ -16,10 +16,8 @@ Allocator *newAllocator(size_t chunkSize, size_t capacity) {
     return a;
 }
 
-#include<stdio.h>
 static void grow(Allocator *a) {
     if (a->chunkCount == a->capacity) {
-        printf("reallocating allocator\n");
         void **reallocated = realloc(a->chunks, 2 * a->capacity);
         assert(reallocated);
         a->chunks = reallocated;

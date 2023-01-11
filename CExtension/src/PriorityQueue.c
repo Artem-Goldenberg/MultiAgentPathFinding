@@ -25,9 +25,7 @@ bool dequeue(PriorityQueue *q, void *storage) {
     return true;
 }
 
-#include <stdio.h>
 static void grow(PriorityQueue *q) {
-    printf("reallocating priority queue\n");
     void *reallocated = realloc(q->nodes, q->width * q->capacity * 2);
     assert(reallocated);
     q->capacity *= 2;
