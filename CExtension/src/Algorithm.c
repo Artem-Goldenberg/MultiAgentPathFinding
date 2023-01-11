@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define NUM_BUCKETS 1337
 
@@ -39,8 +40,9 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
     
     int maxConstrainedTime = getGoalTimeBoundary(map, g);
     bool found = false;
-    
+
     Node *node = allocate(a, sizeof(Node));
+    memset(node, 0, sizeof(Node));
     node->p = s;
     enqueue(open, node);
     
@@ -91,6 +93,7 @@ bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
     bool found = false;
     
     MddNode *node = allocate(a, sizeof(MddNode));
+    memset(node, 0, sizeof(MddNode));
     node->p = s;
     enqueue(open, node);
     
@@ -216,6 +219,7 @@ bool testPath(void) {
 }
 
 int main() { 
-    testPath();
+    // testPath();
+    printf("some");
     return 0;
 }

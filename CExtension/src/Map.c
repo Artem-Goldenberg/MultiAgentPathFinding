@@ -74,7 +74,7 @@ static bool notInEConstraints(Map *map, int time, Point p1, Point p2) {
         swap(&p1, &p2);
     EConstraint toFind = {time - 1, {p1, p2}};
     // the only difference and    ^^^^^^  reason why we can't have one type of constraints
-    return !map->vConstraints || searchArray(map->vConstraints, &toFind, vConstraintCmp, true) == ARRAY_NOT_FOUND;
+    return !map->eConstraints || searchArray(map->eConstraints, &toFind, eConstraintCmp, true) == ARRAY_NOT_FOUND;
 }
 static bool notInConstraints(Map *map, int time, Point current, Point dest) {
     return notInVConstraints(map, time, dest) && notInEConstraints(map, time, current, dest);

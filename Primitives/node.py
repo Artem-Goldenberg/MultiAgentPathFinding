@@ -9,9 +9,8 @@ class Node:
 
     - vertexConstraints: mapping from agent index to all vertex constraints on that agent, readonly
     - edgeConstraints: mapping from agent index to all edge constraints on that agent, readonly
-    use `add_constraint_for` method to add new constraints 
 
-    - solutions: list of solutions for all agents, readonly, modify using `set_solution_for` method
+    - solutions: list of solutions for all agents, readonly, modify using `update_solution_for` method
     - cost: summary cost of all solutions, readonly
     - time: time needed for all agents to complete their paths, just max time over all solutions
     """
@@ -52,7 +51,6 @@ class Node:
         self.cost -= self.solutions[agent_id].cost
         self.cost += solution.cost
         self.solutions[agent_id] = solution
-        # self.cost = sum(map(lambda sol: sol.cost, self.solutions))
         self.time = max(map(lambda sol: sol.cost, self.solutions))
 
     def __hash__(self) -> int:

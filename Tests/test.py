@@ -12,10 +12,10 @@ from typing import Callable, Optional
 
 from Primitives.node import Node
 
-from mapf import MAPF
+from Algorithms.mapf import MAPF
 from graphics import animate_solutions
 
-import cbs
+import Algorithms.cbs as cbs
 
 # Should be universal type for all CBS-like algorithms
 Solver = Callable[[MAPF], Optional[Node]]
@@ -28,10 +28,10 @@ def copy_solution_file(tmp_file: str):
         filename = f"solutions{i}.gif"
         i += 1
 
-    shutil.copyfile(tmp_file, parent_dir + "/saved/" + filename)
+    shutil.copyfile(tmp_file, "./saved/" + filename)
 
 
-def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple[Node, float, float]:
+def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple[Optional[Node], float, float]:
     """
     This function designed to be the base testing function for all CBS-like algorithms
     
@@ -44,14 +44,17 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
     - save: boolean flag, whether we should save the received result in the special folder called `save`
     """
 
-    # TODO: try
-    start_cpu_time = time.process_time()
-    start_wall_time = time.time()
-    result = algorithm(task)
-    wall_time = time.time() - start_wall_time
-    cpu_time = time.process_time() - start_cpu_time
-    assert result
-    if not show and not save:
+    try:
+        start_cpu_time = time.process_time()
+        start_wall_time = time.time()
+        result = algorithm(task)
+        wall_time = time.time() - start_wall_time
+        cpu_time = time.process_time() - start_cpu_time
+    except Exception as e:
+        print(f"Exception while executing: {e}")
+        return (None, 0, 0)
+
+    if result is None or (not show and not save):
         return (result, cpu_time, wall_time)
 
     tmp_file = animate_solutions(task.map, result, show=show)
@@ -76,12 +79,16 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
         task = MAPF()
         task.read_txt(current_dir + '/' + name)
         result, _, _ = base_test(task, algorithm)
-        if result.cost != cost:
+        if result is None or result.cost != cost:
+            found_cost = result.cost if result is not None else '∞'
             print(
-                f"❌❌❌ 😰😡😩 Fail on test {i + 1}: cost found = {result.cost} ≠ {cost}, file: {name} ❌❌❌"
+                f"❌❌❌ 😰 Fail on test {i + 1}: "  # type: ignore
+                f"cost found = {found_cost} ≠ {cost}, "
+                f"file: {name} ❌❌❌"
             )
             failed += 1
             if failed >= can_fail_before_quit:
+                print("\nToo many failed cases 😩, breaking the test 😡")
                 return
 
     if failed == 0:
@@ -90,7 +97,7 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
         )
 
 
-def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths], draw=True, print_path=True):
+def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths], draw=True, print_path=False):
     """ 
     Tests algorithms (one or multiple) on one test, giving maximum information 
 

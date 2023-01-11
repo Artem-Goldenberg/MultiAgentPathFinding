@@ -44,7 +44,7 @@ def animate_solutions(map: Map, node: Node, *, show=True, wall_color='#2776B3'):
             block = Rectangle((x, y), 1, 1, color=wall_color)
             ax.add_patch(block)
 
-    time_label = ax.text(0, map.height + 0.3, "t = 0",
+    time_label = ax.text(0, map.height + 0.5, "t = 0",
                          color="#000000", fontsize=17, fontdict={'fontname':'Chalkboard'})
 
     agents = []

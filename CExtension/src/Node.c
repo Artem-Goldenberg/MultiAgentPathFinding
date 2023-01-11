@@ -1,5 +1,6 @@
 #include "Node.h"
 #include <stdlib.h>
+#include <assert.h>
 
 static int cantor(int a, int b) {
     return (a + b + 1) * (a + b) / 2 + b;
@@ -44,6 +45,7 @@ int mddNodeCmp(const void *p1, const void *p2) {
 
 void addParent(MddNode *node, MddNode *parent) {
     int i = 0;
-    while (node->parents[i]) ++i; // skip to an empty slot
+    while (i < 5 && node->parents[i]) ++i; // skip to an empty slot
+    assert(i < 5);
     node->parents[i] = parent;
 }

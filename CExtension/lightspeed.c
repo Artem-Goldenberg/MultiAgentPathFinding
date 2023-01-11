@@ -12,7 +12,7 @@
 #define NUM_BUCKETS 317
 
 /// Uncomment if you want to debug `A*`
-//  #define DebugMode
+// #define DebugMode
 
 
 extern Allocator *a;
@@ -105,7 +105,7 @@ static void appendParents(void *p, void *auxData) {
     MddNode *node = *(MddNode**)p;
     MapHelper *helper = (MapHelper*)auxData;
     
-    for (int i = 0; node->parents[i]; ++i) {
+    for (int i = 0; i < 5 && node->parents[i]; ++i) {
         addTo(helper->nextLayer, &node->parents[i]);
         helper->mddPtr[-1]++; // increase number of edges
     }
@@ -117,7 +117,7 @@ static PyObject *constructPathAndMdd(MddNode *result) {
     PyArrayObject *path = constructPath((Node*)result);
     
     npy_intp shape[] = {result->g * 2 + 1};
-    PyArrayObject *mdd = (PyArrayObject*)PyArray_SimpleNew(1, shape, NPY_INT);
+    PyArrayObject *mdd = (PyArrayObject*)PyArray_ZEROS(1, shape, NPY_INT, 0);
     
     int *mddPtr = PyArray_DATA(mdd);
     
@@ -186,7 +186,7 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
         found = findPath(map, s, g, &result);
         if (found) returnObject = (PyObject*)constructPath(&result);
     } else {
-        a = newAllocator(10 * sizeof(MddNode), map->width * map->height / 3);
+        a = newAllocator(20 * sizeof(MddNode), map->width * map->height / 3);
         
         // A* for all paths
         MddNode result;
