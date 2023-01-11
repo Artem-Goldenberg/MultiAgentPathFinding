@@ -12,7 +12,7 @@
 #define NUM_BUCKETS 317
 
 /// Uncomment if you want to debug `A*`
-// #define DebugMode
+#define DebugMode
 
 
 extern Allocator *a;
@@ -96,9 +96,16 @@ static PyArrayObject *constructPath(Node *result) {
     return path;
 }
 
+static void fillArray(void *p, void *auxData) { 
+    MddNode *node = *(MddNode**)p;
+    Point **ptr = (Point**)auxData;
+    **ptr = node->p;
+    (*ptr)++;
+}
+
 typedef struct {
     Set *nextLayer;
-    int *mddPtr;
+    int *ptr;
 } MapHelper;
 
 static void appendParents(void *p, void *auxData) {
@@ -107,19 +114,20 @@ static void appendParents(void *p, void *auxData) {
     
     for (int i = 0; i < 5 && node->parents[i]; ++i) {
         addTo(helper->nextLayer, &node->parents[i]);
-        helper->mddPtr[-1]++; // increase number of edges
+        helper->ptr[-1]++; // increase number of edges
     }
     
-    helper->mddPtr[0]++; // increase number of nodes
+    helper->ptr[0]++; // increase number of nodes
 }
 
-static PyObject *constructPathAndMdd(MddNode *result) {
+static PyObject *constructPathAndMdd(MddNode *result, bool liteMdd, bool fullMdd) {
     PyArrayObject *path = constructPath((Node*)result);
-    
+
     npy_intp shape[] = {result->g * 2 + 1};
-    PyArrayObject *mdd = (PyArrayObject*)PyArray_ZEROS(1, shape, NPY_INT, 0);
-    
-    int *mddPtr = PyArray_DATA(mdd);
+    PyArrayObject *countedMdd = liteMdd ? (PyArrayObject*)PyArray_ZEROS(1, shape, NPY_INT, 0) : NULL;
+    int *countedMddPtr = liteMdd ? PyArray_DATA(countedMdd) : NULL;
+
+    PyListObject *mdd = fullMdd ? (PyListObject*)PyList_New(result->g + 1) : NULL;
     
     Set layers[2];
     Set *layer = layers, *nextLayer = layers + 1;
@@ -128,8 +136,23 @@ static PyObject *constructPathAndMdd(MddNode *result) {
 
     addTo(layer, &result);
     for (int i = 0; i <= result->g; ++i) {
-        MapHelper helper = {nextLayer, mddPtr + (result->g - i) * 2};
+        int *ptr;
+        if (liteMdd) {
+            ptr = countedMddPtr + (result->g - i) * 2;
+        } else {
+            int dummy[] = {0, 0};
+            ptr = dummy + 1;
+        }
+        MapHelper helper = {nextLayer, ptr};
         mapSet(layer, appendParents, &helper);
+
+        if (fullMdd) { 
+            npy_intp shape[] = {ptr[0], 2};
+            PyArrayObject *mddLayer = (PyArrayObject*)PyArray_SimpleNew(2, shape, NPY_INT);
+            Point *p = PyArray_DATA(mddLayer);
+            mapSet(layer, fillArray, &p);
+            PyList_SET_ITEM(mdd, i, (PyObject*)mddLayer);
+        }
         
         // swap layers and clear nextLayer
         Set *tmp = layer;
@@ -137,11 +160,18 @@ static PyObject *constructPathAndMdd(MddNode *result) {
         nextLayer = tmp;
         clearSet(nextLayer);
     }
+
+    if (fullMdd) PyList_Reverse((PyObject*)mdd);
     
     deinitSet(layer);
     deinitSet(nextLayer);
     
-    return PyTuple_Pack(2, path, mdd);
+    if (liteMdd && fullMdd) 
+        return PyTuple_Pack(3, path, countedMdd, mdd);
+    else if (fullMdd) // only full mdd
+        return PyTuple_Pack(2, path, mdd);
+    else // only lite mdd
+        return PyTuple_Pack(2, path, countedMdd);
 }
 
 static PyObject *
@@ -149,16 +179,16 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
 {
     PyArrayObject *grid = NULL, *vConstraints = NULL, *eConstraints = NULL;
     int sx, sy, gx, gy;
-    bool returnAll = false;
-    static char *keylist[] = {"map", "start", "goal", "v_constraints", "e_constraints", "return_all", NULL};
+    bool liteMdd = false, fullMdd = false;
+    static char *keylist[] = {"map", "start", "goal", "v_constraints", "e_constraints", "lite_mdd", "full_mdd", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(
-        args, keywords, "O!(ii)(ii)|O!O!i", keylist, 
+        args, keywords, "O!(ii)(ii)|O!O!ii", keylist, 
         &PyArray_Type, &grid, 
         &sx, &sy, &gx, &gy, 
         &PyArray_Type, &vConstraints, 
         &PyArray_Type, &eConstraints,
-        &returnAll
+        &liteMdd, &fullMdd
     ))
         return NULL;
 
@@ -178,7 +208,7 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
 
     bool found;
     PyObject *returnObject;
-    if (!returnAll) {
+    if (!liteMdd && !fullMdd) {
         a = newAllocator(20 * sizeof(Node), map->width * map->height / 3);
         
         // actual A* here
@@ -191,7 +221,8 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
         // A* for all paths
         MddNode result;
         found = findAllPaths(map, s, g, &result);
-        if (found) returnObject = constructPathAndMdd(&result);
+        printf("found is %d\n", found);
+        if (found) returnObject = constructPathAndMdd(&result, liteMdd, fullMdd);
     }
     
     deleteMap(map);
