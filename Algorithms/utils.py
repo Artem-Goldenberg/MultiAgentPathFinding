@@ -14,30 +14,26 @@ def extract_tuple(value) -> tuple:
     return (value, None)
 
 
-def get_start_node(task: MAPF, build_mdds=False) -> Node:
+def get_start_node(task: MAPF, counted_mdds=False, mdds=False) -> Node:
     solutions = []
     for i, (s, g) in enumerate(zip(task.start_points, task.goal_points)):
-        result = lightspeed.find_path(task.map.cells, s, g, lite_mdd=build_mdds)
+        result = lightspeed.find_path(task.map.cells, s, g, lite_mdd=counted_mdds, full_mdd=mdds)
         if result is None: 
             return None # type: ignore
         solutions.append(Solution(i, *extract_tuple(result)))
     return Node(solutions)
 
 
-def update_solution_for(agent_id: int, node: Node, task: MAPF, build_mdd=False) -> bool:
+def update_solution_for(agent_id: int, node: Node, task: MAPF, *, counted_mdd=False, mdd=False) -> bool:
     # construct contiguous ndarrays
-    # vc = node.vertexConstraints.get(agent_id, [])
-    # ec = node.edgeConstraints.get(agent_id, [])
-
-    vc = filter(lambda c: c.agent_id == agent_id, node.vertexConstraints)
-    ec = filter(lambda c: c.agent_id == agent_id, node.edgeConstraints)
-
-    # v_constraints = np.array(
-    #     [np.asarray(c) for c in node.vertexConstraints if c.agent_id == agent_id],
-    #      dtype=np.int32
-    # )
-    v_constraints = np.array([np.asarray(c) for c in vc], dtype=np.int32)
-    e_constraints = np.array([np.asarray(c) for c in ec], dtype=np.int32)
+    v_constraints = np.array(
+        [np.asarray(c) for c in node.vertexConstraints if c.agent_id == agent_id],
+        dtype=np.int32
+    )
+    e_constraints = np.array(
+        [np.asarray(c) for c in node.edgeConstraints if c.agent_id == agent_id],
+        dtype=np.int32
+    )
 
     s = task.start_points[agent_id]
     g = task.goal_points[agent_id]
@@ -46,7 +42,7 @@ def update_solution_for(agent_id: int, node: Node, task: MAPF, build_mdd=False) 
     result = lightspeed.find_path(
         task.map.cells, s, g, 
         v_constraints=v_constraints, e_constraints=e_constraints,
-        lite_mdd=build_mdd
+        lite_mdd=counted_mdd, full_mdd=mdd
     )
 
     if result is None: return False

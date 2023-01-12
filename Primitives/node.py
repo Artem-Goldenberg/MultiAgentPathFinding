@@ -28,6 +28,7 @@ class Node:
 
     def make_copy(self, new_constraint: Constraint) -> 'Node':
         node = Node(deepcopy(self.solutions))
+        # node.cost = self.cost
 
         if isinstance(new_constraint, VertexConstraint):
             node.vertexConstraints = self.vertexConstraints.union([new_constraint])

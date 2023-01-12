@@ -111,7 +111,7 @@ typedef struct {
 static void appendParents(void *p, void *auxData) {
     MddNode *node = *(MddNode**)p;
     MapHelper *helper = (MapHelper*)auxData;
-    
+
     for (int i = 0; i < 5 && node->parents[i]; ++i) {
         addTo(helper->nextLayer, &node->parents[i]);
         helper->ptr[-1]++; // increase number of edges
@@ -124,11 +124,11 @@ static PyObject *constructPathAndMdd(MddNode *result, bool liteMdd, bool fullMdd
     PyArrayObject *path = constructPath((Node*)result);
 
     npy_intp shape[] = {result->g * 2 + 1};
-    PyArrayObject *countedMdd = liteMdd ? (PyArrayObject*)PyArray_ZEROS(1, shape, NPY_INT, 0) : NULL;
-    int *countedMddPtr = liteMdd ? PyArray_DATA(countedMdd) : NULL;
+    PyObject *countedMdd = liteMdd ? PyArray_ZEROS(1, shape, NPY_INT, 0) : Py_None;
+    int *countedMddPtr = liteMdd ? PyArray_DATA((PyArrayObject*)countedMdd) : NULL;
 
-    PyListObject *mdd = fullMdd ? (PyListObject*)PyList_New(result->g + 1) : NULL;
-    
+    PyObject *mdd = fullMdd ? PyList_New(result->g + 1) : Py_None;
+
     Set layers[2];
     Set *layer = layers, *nextLayer = layers + 1;
     initSet(layer, sizeof(MddNode*), NUM_BUCKETS, mddNodeHash, mddNodeCmp, NULL);
@@ -137,12 +137,12 @@ static PyObject *constructPathAndMdd(MddNode *result, bool liteMdd, bool fullMdd
     addTo(layer, &result);
     for (int i = 0; i <= result->g; ++i) {
         int *ptr;
-        if (liteMdd) {
+        int dummy[] = {0, 0};
+        if (liteMdd) 
             ptr = countedMddPtr + (result->g - i) * 2;
-        } else {
-            int dummy[] = {0, 0};
+        else 
             ptr = dummy + 1;
-        }
+
         MapHelper helper = {nextLayer, ptr};
         mapSet(layer, appendParents, &helper);
 
@@ -161,17 +161,13 @@ static PyObject *constructPathAndMdd(MddNode *result, bool liteMdd, bool fullMdd
         clearSet(nextLayer);
     }
 
-    if (fullMdd) PyList_Reverse((PyObject*)mdd);
+    if (fullMdd) 
+        PyList_Reverse((PyObject*)mdd);
     
     deinitSet(layer);
     deinitSet(nextLayer);
     
-    if (liteMdd && fullMdd) 
-        return PyTuple_Pack(3, path, countedMdd, mdd);
-    else if (fullMdd) // only full mdd
-        return PyTuple_Pack(2, path, mdd);
-    else // only lite mdd
-        return PyTuple_Pack(2, path, countedMdd);
+    return PyTuple_Pack(3, path, countedMdd, mdd);
 }
 
 static PyObject *
@@ -221,7 +217,6 @@ fromPython(PyObject *self, PyObject *args, PyObject *keywords)
         // A* for all paths
         MddNode result;
         found = findAllPaths(map, s, g, &result);
-        printf("found is %d\n", found);
         if (found) returnObject = constructPathAndMdd(&result, liteMdd, fullMdd);
     }
     

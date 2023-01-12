@@ -8,17 +8,20 @@ sys.path.append(parent_dir)
 
 import pandas as pd
 from tqdm import tqdm
+from inspect import getmodule
 from typing import Callable, Optional
 
 from Primitives.node import Node
-
 from Algorithms.mapf import MAPF
-from .graphics import animate_solutions
+from Algorithms.search_tree import SearchTreePQS as ST
+
+from Tests.graphics import animate_solutions
 
 import Algorithms.cbs as cbs
 
 # Should be universal type for all CBS-like algorithms
-Solver = Callable[[MAPF], Optional[Node]]
+Solver = Callable[[MAPF], tuple[Optional[Node], ST]]
+DebugInfo = tuple[ST, float, float] # Search tree, cpu time, wall time
 
 
 def copy_solution_file(tmp_file: str):
@@ -31,7 +34,7 @@ def copy_solution_file(tmp_file: str):
     shutil.copyfile(tmp_file, "./saved/" + filename)
 
 
-def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple[Optional[Node], float, float]:
+def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple[Optional[Node], Optional[DebugInfo]]:
     """
     This function designed to be the base testing function for all CBS-like algorithms
     
@@ -52,19 +55,19 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
         cpu_time = time.process_time() - start_cpu_time
     except Exception as e:
         print(f"Exception while executing: {e}")
-        return (None, 0, 0)
+        return None, None
 
     if result is None or (not show and not save):
-        return (result, ast, cpu_time, wall_time)
+        return result, (ast, cpu_time, wall_time)
 
     tmp_file = animate_solutions(task.map, result, show=show)
     if save:
         copy_solution_file(tmp_file)
 
-    return (result, cpu_time, wall_time)
+    return result, (ast, cpu_time, wall_time)
 
 
-def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_quit=10):
+def test_correctness(algorithm: Solver = cbs.solve, can_fail_before_quit=10):
     """ 
     Validate correctness of an algorithm by comparing its solutions to the precomputed ones
     
@@ -73,13 +76,15 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
         It's just for debugging purposes, if your algorithm failed at least one test, 
         then it's incorrect no matter what the value of this property, just not to give any false hopes....
     """
+    print(
+        f"Testing '{getmodule(algorithm).__name__}.{algorithm.__name__}' for the correctness: "  # type: ignore
+    )
     failed = 0
     answers = pd.read_csv(current_dir + "/instances/min-sum-of-cost.csv")
     for i, (name, cost) in tqdm(answers.iterrows()):
         task = MAPF()
         task.read_txt(current_dir + '/' + name)
-        result, ast, _, _ = base_test(task, algorithm)
-        print(f"Closed: {len(ast._closed)}, Open: {len(ast._open)}    for: {name}")
+        result, _ = base_test(task, algorithm)
         if result is None or result.cost != cost:
             found_cost = result.cost if result is not None else '∞'
             print(
@@ -94,11 +99,11 @@ def test_correctness(algorithm: Solver = cbs.find_agents_paths, can_fail_before_
 
     if failed == 0:
         print(
-            "️✅✅️✅ Congratulations! 🤩 Your algorithm hse passed all tests! 😎😎😎"
+            "️✅✅️✅ Congratulations! 🤩 Your algorithm has passed all tests! 😎😎😎"
         )
 
 
-def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths], draw=True, print_path=False):
+def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], draw=True, print_path=False):
     """ 
     Tests algorithms (one or multiple) on one test, giving maximum information 
 
@@ -112,22 +117,31 @@ def simple_test(filename: str, algorithms: list[Solver] = [cbs.find_agents_paths
     task.read_txt(current_dir + '/' + filename)
 
     for algorithm in algorithms:
-        print(f"Testing '{algorithm.__name__}' algorithm on the map '{filename}':")
-        result, cpu_time, wall_time = base_test(task, algorithm, show=draw)
+        print(
+            f"Testing '{getmodule(algorithm).__name__}.{algorithm.__name__}' " # type: ignore
+            f"algorithm on the map '{filename}':"
+        )
+        result, debug = base_test(task, algorithm, show=draw)
         if result is None:
             print("Path not fount!")
             continue
         print(f"Found solution with cost = {result.cost}")
-        print(f"CPU time = {cpu_time} seconds, Wall time = {wall_time} seconds")
-        if print_path:
-            print("Agent paths:")
-            for solution in result.solutions:
-                print(f"[{solution.agent_id}] = ", end="")
-                for i, point in enumerate(solution._path):
-                    print(f"({point[0]}, {point[1]})", end="")
-                    if i != len(solution._path - 1):
-                        print(" -> ", end="")
-                    else:
-                        print(", ", end="")
-                print(f"cost = {solution.cost}")
+        if debug is not None:
+            ast, cpu_time, wall_time = debug
+            print(f"Open: {len(ast._open)}, Closed: {len(ast._closed)}")
+            print(f"CPU time = {cpu_time} seconds, Wall time = {wall_time} seconds")
+            if print_path: _print_path(result)
         print("--------------------------------------------------------------------------\n")
+
+
+def _print_path(result: Node):
+    print("Agent paths:")
+    for solution in result.solutions:
+        print(f"[{solution.agent_id}] = ", end="")
+        for i, point in enumerate(solution._path):
+            print(f"({point[0]}, {point[1]})", end="")
+            if i != len(solution._path - 1):
+                print(" -> ", end="")
+            else:
+                print(", ", end="")
+        print(f"cost = {solution.cost}")

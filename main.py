@@ -1,33 +1,36 @@
-import argparse
+# import argparse
 
-parser = argparse.ArgumentParser(
-    description="Access different algorithms for multi-agent path finding problem",
-    epilog="For more, see https://github.com/Artem-Goldenberg/MultiAgentPathFinding"
-)
-parser.add_argument(
-    'algorithm',
-     choices=['cbs', 'cbs_pc', 'cbsh', 'icbs'],
-     help="algorithm to solve your problem with"
-)
-parser.add_argument(
-    'filename',
-    help="path to file with a MAPF problem"
-)
-parser.add_argument(
-    '-a', '--animate',
-    action='store_true',
-    help="animate the solution"
-)
+# parser = argparse.ArgumentParser(
+#     description="Access different algorithms for multi-agent path finding problem",
+#     epilog="For more, see https://github.com/Artem-Goldenberg/MultiAgentPathFinding"
+# )
+# parser.add_argument(
+#     'algorithm',
+#      choices=['cbs', 'cbs_pc', 'cbsh', 'icbs'],
+#      help="algorithm to solve your problem with"
+# )
+# parser.add_argument(
+#     'filename',
+#     help="path to file with a MAPF problem"
+# )
+# parser.add_argument(
+#     '-a', '--animate',
+#     action='store_true',
+#     help="animate the solution"
+# )
 
 # parser.print_help()
 # args = parser.parse_args()
 
 # print(args)
 
-import Algorithms.cbs
-from Tests.test import test_correctness
+from Algorithms import cbs, cbs_pc, cbsh, icbs
+from Tests.test import test_correctness, simple_test
 
-test_correctness()
+test_correctness(icbs.solve)
+
+# simple_test("instances/test_47.txt", algorithms=[cbsh.solve], draw=False, print_path=True)
+# simple_test("instances/test_47.txt", algorithms=[cbs.solve], draw=False, print_path=True)
 
 # from Algorithms.mapf import MAPF
 # from Algorithms.cbs_pc import find_agents_paths
@@ -59,7 +62,8 @@ test_correctness()
 
 # ec = np.array([[0, 0, 0, 1, 0]], dtype=np.int32)
 
-# result, countedMdd, mdd = find_path(mapArray, s, g, lite_mdd=True, full_mdd=True)
+# result, countedMdd, mdd = find_path(mapArray, s, g, lite_mdd=True, full_mdd=False)
 # print(result, countedMdd)
-# for layer in mdd:
-#     print(layer)
+# if mdd is not None:
+#     for layer in mdd:
+#         print(layer)
