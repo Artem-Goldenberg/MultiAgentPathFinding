@@ -34,7 +34,7 @@ def copy_solution_file(tmp_file: str):
     shutil.copyfile(tmp_file, "./saved/" + filename)
 
 
-def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple[Optional[Node], Optional[DebugInfo]]:
+def base_test(task: MAPF, algorithm: Solver, *, show=False, save=None) -> tuple[Optional[Node], Optional[DebugInfo]]:
     """
     This function designed to be the base testing function for all CBS-like algorithms
     
@@ -43,8 +43,8 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
 
     - task: MAPF task to test the algorithm on
     - algorithm: Callable function which returns the node as it's final result
-    - show: boolean blag indicating if we need to draw an animated solution to this test
-    - save: boolean flag, whether we should save the received result in the special folder called `save`
+    - show: boolean flag indicating if we need to draw an animated solution to this test
+    - save: optional string, path to save .gif file, default is `None` (don't save) 
     """
 
     try:
@@ -59,10 +59,9 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=False) -> tuple
 
     if result is None or (not show and not save):
         return result, (ast, cpu_time, wall_time)
-
-    tmp_file = animate_solutions(task.map, result, show=show)
-    if save:
-        copy_solution_file(tmp_file)
+    
+    if save: print(f"Saving solution animation to '{save}'")
+    tmp_file = animate_solutions(task.map, result, show=show, save=save)
 
     return result, (ast, cpu_time, wall_time)
 
@@ -103,29 +102,31 @@ def test_correctness(algorithm: Solver = cbs.solve, can_fail_before_quit=10):
         )
 
 
-def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], draw=True, print_path=False):
+def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], show=True, save=None, print_path=False):
     """ 
     Tests algorithms (one or multiple) on one test, giving maximum information 
 
     - filename: name of the test file in .txt format (as always), 
         filename MUST be relative to the `Tests` directory
     - algorithms: list of all algorithms to test, default is the standard cbs algorithm
-    - whether or not to draw animated solution, it may take some time
+    - show: boolean flag indicating whether or not to draw animated solution, it may take some time
+    - save: optional string, path to save .gif file, default is `None` (don't save) 
     """
 
     task = MAPF()
-    task.read_txt(current_dir + '/' + filename)
+    # task.read_txt(current_dir + '/' + filename)
+    task.read_txt('./' + filename)
 
     for algorithm in algorithms:
         print(
             f"Testing '{getmodule(algorithm).__name__}.{algorithm.__name__}' " # type: ignore
             f"algorithm on the map '{filename}':"
         )
-        result, debug = base_test(task, algorithm, show=draw)
+        result, debug = base_test(task, algorithm, show=show, save=save)
         if result is None:
-            print("Path not fount!")
+            print("\nPath not fount!")
             continue
-        print(f"Found solution with cost = {result.cost}")
+        print(f"\nFound solution with cost = {result.cost}")
         if debug is not None:
             ast, cpu_time, wall_time = debug
             print(f"Open: {len(ast._open)}, Closed: {len(ast._closed)}")

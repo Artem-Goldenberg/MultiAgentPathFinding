@@ -19,7 +19,7 @@ class Map:
 
         :param filename: name of the file
         """
-        with open(filename) as file:
+        with open(filename, 'r') as file:
             lines = file.readlines()
         self.height = int(lines[1].split()[1])
         self.width = int(lines[2].split()[1])

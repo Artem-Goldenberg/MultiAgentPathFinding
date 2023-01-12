@@ -27,7 +27,7 @@ class MAPF:
 
         :param filename - name of the .txt file
         """
-        with open(filename) as file:
+        with open(filename, 'r') as file:
             lines = file.readlines()
 
         self.map.read_txt(lines)

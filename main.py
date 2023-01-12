@@ -1,33 +1,36 @@
-# import argparse
-
-# parser = argparse.ArgumentParser(
-#     description="Access different algorithms for multi-agent path finding problem",
-#     epilog="For more, see https://github.com/Artem-Goldenberg/MultiAgentPathFinding"
-# )
-# parser.add_argument(
-#     'algorithm',
-#      choices=['cbs', 'cbs_pc', 'cbsh', 'icbs'],
-#      help="algorithm to solve your problem with"
-# )
-# parser.add_argument(
-#     'filename',
-#     help="path to file with a MAPF problem"
-# )
-# parser.add_argument(
-#     '-a', '--animate',
-#     action='store_true',
-#     help="animate the solution"
-# )
-
-# parser.print_help()
-# args = parser.parse_args()
-
-# print(args)
+import argparse
 
 from Algorithms import cbs, cbs_pc, cbsh, icbs
-from Tests.test import test_correctness, simple_test
+from Tests.test import simple_test
 
-test_correctness(icbs.solve)
+parser = argparse.ArgumentParser(
+    description="Access different algorithms for multi-agent path finding problem",
+    epilog="For more, see https://github.com/Artem-Goldenberg/MultiAgentPathFinding"
+)
+parser.add_argument(
+    'algorithm',
+     choices=['cbs', 'cbs_pc', 'cbsh', 'icbs'],
+     help="algorithm to solve your problem with"
+)
+parser.add_argument(
+    'filename',
+    help="path to file with a MAPF problem"
+)
+parser.add_argument(
+    '-d', '--draw',
+    nargs='?',
+    const='solution_animation.gif',
+    metavar="filepath",
+    help="store the solution animation in specified path, defaults 'solution_animation.gif'"
+)
+
+args = parser.parse_args()
+
+simple_test(
+    args.filename, 
+    algorithms=[eval(args.algorithm + '.solve')],
+    show=False, save=args.draw, print_path=True
+)
 
 # simple_test("instances/test_47.txt", algorithms=[cbsh.solve], draw=False, print_path=True)
 # simple_test("instances/test_47.txt", algorithms=[cbs.solve], draw=False, print_path=True)

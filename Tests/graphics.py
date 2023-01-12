@@ -28,7 +28,7 @@ pallet = [
 ]
 
 
-def animate_solutions(map: Map, node: Node, *, show=True, wall_color='#2776B3'):
+def animate_solutions(map: Map, node: Node, *, show=True, save=None, wall_color='#2776B3'):
     fpe = 15  # frames per one edge passing to smooth out animation
 
     fig, ax = plt.subplots()
@@ -87,7 +87,8 @@ def animate_solutions(map: Map, node: Node, *, show=True, wall_color='#2776B3'):
         frames=frames, interval=40
     )
 
-    dumpname = "./tmp/current_animation.gif"
+    # dumpname = "./tmp/current_animation.gif"
+    dumpname = "./tmp/current_animation.gif" if not save else save
     movie.save(dumpname)  # type: ignore
     if show:
         display(Image(filename=dumpname))
