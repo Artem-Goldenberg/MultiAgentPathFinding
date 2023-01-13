@@ -15,6 +15,7 @@ from Primitives.node import Node
 from Algorithms.mapf import MAPF
 from Algorithms.search_tree import SearchTreePQS as ST
 
+import Tests.utils as utils
 from Tests.graphics import animate_solutions
 
 import Algorithms.cbs as cbs
@@ -61,7 +62,7 @@ def base_test(task: MAPF, algorithm: Solver, *, show=False, save=None) -> tuple[
         return result, (ast, cpu_time, wall_time)
     
     if save: print(f"Saving solution animation to '{save}'")
-    tmp_file = animate_solutions(task.map, result, show=show, save=save)
+    animate_solutions(task.map, result, show=show, save=save)
 
     return result, (ast, cpu_time, wall_time)
 
@@ -131,18 +132,6 @@ def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], show=True
             ast, cpu_time, wall_time = debug
             print(f"Open: {len(ast._open)}, Closed: {len(ast._closed)}")
             print(f"CPU time = {cpu_time} seconds, Wall time = {wall_time} seconds")
-            if print_path: _print_path(result)
+            if print_path: utils.print_path(result)
         print("--------------------------------------------------------------------------\n")
 
-
-def _print_path(result: Node):
-    print("Agent paths:")
-    for solution in result.solutions:
-        print(f"[{solution.agent_id}] = ", end="")
-        for i, point in enumerate(solution._path):
-            print(f"({point[0]}, {point[1]})", end="")
-            if i != len(solution._path - 1):
-                print(" -> ", end="")
-            else:
-                print(", ", end="")
-        print(f"cost = {solution.cost}")

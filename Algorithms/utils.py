@@ -1,5 +1,5 @@
 import numpy as np
-from CExtension import lightspeed
+from CExtension import lightspeed # type: ignore
 
 from Primitives.map import Point
 from Primitives.node import Node

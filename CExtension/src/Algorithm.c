@@ -40,6 +40,7 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
     
     int maxConstrainedTime = getGoalTimeBoundary(map, g);
     bool found = false;
+    bool isGoal = false;
 
     Node *node = allocate(a, sizeof(Node));
     memset(node, 0, sizeof(Node));
@@ -47,10 +48,11 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
     enqueue(open, node);
     
     while (dequeue(open, node)) {
-        found = false;
+        isGoal = false;
         if (node->p.x == g.x && node->p.y == g.y) {
-            found = true;
+            isGoal = true;
             if (node->g > maxConstrainedTime) {
+                found = true;
                 *storage = *node;
                 break;
             }
@@ -63,7 +65,7 @@ bool findPath(Map *map, Point s, Point g, Node *storage) {
         addTo(closed, &node);
         
         Point neighbors[5];
-        int amount = getNeighbors(map, node->g + 1, node->p, found, neighbors);
+        int amount = getNeighbors(map, node->g + 1, node->p, isGoal, neighbors);
         for (int i = 0; i < amount; ++i) {
             Node neighbour = {neighbors[i], .g = node->g + 1};
             Node *ptr = &neighbour;
@@ -91,6 +93,7 @@ bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
     
     int maxConstrainedTime = getGoalTimeBoundary(map, g);
     bool found = false;
+    bool isGoal = false;
     
     MddNode *node = allocate(a, sizeof(MddNode));
     memset(node, 0, sizeof(MddNode));
@@ -98,10 +101,11 @@ bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
     enqueue(open, node);
     
     while (dequeue(open, node)) {
-        found = false;
+        isGoal = false;
         if (pointCmp(node->p, g) == 0) {
-            found = true;
+            isGoal = true;
             if (node->g > maxConstrainedTime) {
+                found = true;
                 *storage = *node;
                 break;
             }
@@ -117,7 +121,7 @@ bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
         addTo(closed, &node);
         
         Point neighbors[5];
-        int amount = getNeighbors(map, node->g + 1, node->p, found, neighbors);
+        int amount = getNeighbors(map, node->g + 1, node->p, isGoal, neighbors);
         for (int i = 0; i < amount; ++i) {
             MddNode neighbour = {neighbors[i], .g = node->g + 1};
             MddNode *ptr = &neighbour;

@@ -93,4 +93,3 @@ def animate_solutions(map: Map, node: Node, *, show=True, save=None, wall_color=
     if show:
         display(Image(filename=dumpname))
     plt.close(fig)
-    return dumpname

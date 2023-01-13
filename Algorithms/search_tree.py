@@ -27,3 +27,6 @@ class SearchTreePQS:
 
     def was_expanded(self, item):
         return item in self._closed
+    
+    def count_expanded(self):
+        return len(self._closed)
