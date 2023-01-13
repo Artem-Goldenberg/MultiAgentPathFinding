@@ -120,7 +120,7 @@ def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], show=True
 
     for algorithm in algorithms:
         print(
-            f"Testing '{getmodule(algorithm).__name__}.{algorithm.__name__}' " # type: ignore
+            f"\nTesting '{getmodule(algorithm).__name__}.{algorithm.__name__}' " # type: ignore
             f"algorithm on the map '{filename}':"
         )
         result, debug = base_test(task, algorithm, show=show, save=save)
@@ -130,8 +130,8 @@ def simple_test(filename: str, algorithms: list[Solver] = [cbs.solve], show=True
         print(f"\nFound solution with cost = {result.cost}")
         if debug is not None:
             ast, cpu_time, wall_time = debug
-            print(f"Open: {len(ast._open)}, Closed: {len(ast._closed)}")
+            print(f"Expanded nodes: {ast.count_expanded()}")
             print(f"CPU time = {cpu_time} seconds, Wall time = {wall_time} seconds")
             if print_path: utils.print_path(result)
-        print("--------------------------------------------------------------------------\n")
+        print("------------------------------------------------------------------------------------------------\n")
 

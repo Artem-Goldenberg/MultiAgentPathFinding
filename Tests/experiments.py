@@ -15,7 +15,7 @@ from Algorithms.mapf import MAPF
 from Algorithms import cbs, cbs_pc, cbsh, icbs
 from Tests.test import base_test
 
-TIMEOUT = 3 # 5 minutes
+TIMEOUT = 30 # 5 minutes
 MIN_AGENTS = 4
 MAX_AGENTS = 12
 NUM_INSTANCES = 100
@@ -24,6 +24,7 @@ FEATURES = ['time', 'expanded', 'success_rate']
 NUM_FEATURES = len(FEATURES)
 
 ALG_NAMES = ['cbs', 'cbs_pc', 'cbsh', 'icbs']
+NUM_ALGORITHMS = len(ALG_NAMES)
 # final table columns
 COLUMNS = pd.MultiIndex.from_product([FEATURES, ALG_NAMES])
 
@@ -85,11 +86,10 @@ def experiment1():
 
     m = Map()
     m.read_map(current_dir + "/maps/warehouse.map")
-    results = np.zeros((MAX_AGENTS - MIN_AGENTS + 1, len(ALGORITHMS) * NUM_FEATURES))
+    results = np.zeros((MAX_AGENTS - MIN_AGENTS + 1, NUM_ALGORITHMS * NUM_FEATURES))
 
     for k in range(MIN_AGENTS, MAX_AGENTS + 1):
-        # stats = {key: AlgorithmStats() for key in ALGORITHMS}
-        stats = [AlgorithmStats()] * len(ALGORITHMS)
+        stats = [AlgorithmStats() for _ in range(NUM_ALGORITHMS)]
         # 100 instances for each number of agents
         for i in range(NUM_INSTANCES):
             task = mapf_for(k, i)
@@ -113,10 +113,12 @@ def experiment1():
         for i, stat in enumerate(stats):
             if stat.num_solved == 0: continue
             row = k - MIN_AGENTS
-            cols = range(i * NUM_FEATURES, (i + 1) * NUM_FEATURES)
+            cols = range(i, NUM_ALGORITHMS * NUM_FEATURES, NUM_ALGORITHMS)
             results[row, cols] = stat.features()
 
-    data = pd.DataFrame(results, columns=COLUMNS)
-    data.to_csv(current_dir + 'cache/warehouse.csv')
+        np.save(current_dir + f"/tables/save{k}.npy", arr=results)
+
+    data = pd.DataFrame(results, columns=COLUMNS, index=range(MIN_AGENTS, MAX_AGENTS + 1))
+    data.to_csv(current_dir + '/tables/warehouse.csv')
 
 experiment1()
