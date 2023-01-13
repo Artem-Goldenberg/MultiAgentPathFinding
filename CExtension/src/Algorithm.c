@@ -121,7 +121,7 @@ bool findAllPaths(Map *map, Point s, Point g, MddNode *storage) {
         addTo(closed, &node);
         
         Point neighbors[5];
-        int amount = getNeighbors(map, node->g + 1, node->p, isGoal, neighbors);
+        int amount = getNeighbors(map, node->g + 1, node->p, false, neighbors);
         for (int i = 0; i < amount; ++i) {
             MddNode neighbour = {neighbors[i], .g = node->g + 1};
             MddNode *ptr = &neighbour;

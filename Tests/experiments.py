@@ -16,8 +16,8 @@ from Algorithms import cbs, cbs_pc, cbsh, icbs
 from Tests.test import base_test
 
 TIMEOUT = 30 # 5 minutes
-MIN_AGENTS = 4
-MAX_AGENTS = 12
+MIN_AGENTS = 6
+MAX_AGENTS = 7
 NUM_INSTANCES = 100
 
 FEATURES = ['time', 'expanded', 'success_rate']
@@ -119,6 +119,14 @@ def experiment1():
         np.save(current_dir + f"/tables/save{k}.npy", arr=results)
 
     data = pd.DataFrame(results, columns=COLUMNS, index=range(MIN_AGENTS, MAX_AGENTS + 1))
-    data.to_csv(current_dir + '/tables/warehouse.csv')
+    data.to_csv(current_dir + '/tables/warehouse2.csv')
 
 experiment1()
+setup()
+
+def concat():
+    results = np.load(current_dir + f"/tables/save7.npy")
+    data = pd.DataFrame(results[0:6], columns=COLUMNS, index=range(MIN_AGENTS, MAX_AGENTS + 1))
+    data.to_csv(current_dir + '/tables/warehouse.csv') 
+
+# concat()
